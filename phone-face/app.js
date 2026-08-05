@@ -24,6 +24,75 @@
   let heartbeatTimer = null;
   let reconnectDelay = 1000;
   let wakeLock = null;
+  let blinkTimer = null;
+  let expressionTimer = null;
+  let idleTimer = null;
+  let gazeResetTimer = null;
+  let backendExpressionUntil = 0;
+  let tapExpressionIndex = 0;
+  const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const expressions = ["neutral", "curious", "happy", "sleepy", "wink", "surprised", "focused", "excited", "music"];
+  const idleExpressions = ["curious", "happy", "sleepy", "curious", "wink"];
+  const tapExpressions = ["curious", "happy", "surprised", "excited", "wink"];
+
+  function later (callback, minimum, spread = 0) {
+    return window.setTimeout(callback, minimum + Math.random() * spread);
+  }
+
+  function clearTimer (timer) {
+    if (timer) window.clearTimeout(timer);
+    return null;
+  }
+
+  function setGaze (x = 0, y = 0) {
+    face.style.setProperty("--gaze-x", Math.max(-1, Math.min(1, x)).toFixed(3));
+    face.style.setProperty("--gaze-y", Math.max(-1, Math.min(1, y)).toFixed(3));
+  }
+
+  function setExpression (expression, duration = 0, source = "local") {
+    const normalized = expressions.includes(expression) ? expression : "neutral";
+    if (source === "local" && (face.dataset.state !== "sleeping" || Date.now() < backendExpressionUntil)) return;
+
+    expressionTimer = clearTimer(expressionTimer);
+    face.dataset.expression = normalized;
+    if (source === "backend") backendExpressionUntil = Date.now() + duration;
+
+    if (duration > 0) {
+      expressionTimer = window.setTimeout(() => {
+        face.dataset.expression = "neutral";
+        expressionTimer = null;
+        scheduleIdleExpression();
+      }, duration);
+    }
+  }
+
+  function scheduleBlink () {
+    blinkTimer = clearTimer(blinkTimer);
+    if (motionPreference.matches || document.hidden) return;
+    blinkTimer = later(() => {
+      face.classList.add("is-blinking");
+      window.setTimeout(() => face.classList.remove("is-blinking"), 115);
+      if (Math.random() < 0.18) {
+        window.setTimeout(() => {
+          face.classList.add("is-blinking");
+          window.setTimeout(() => face.classList.remove("is-blinking"), 105);
+        }, 235);
+      }
+      scheduleBlink();
+    }, 2800, 4200);
+  }
+
+  function scheduleIdleExpression () {
+    idleTimer = clearTimer(idleTimer);
+    if (motionPreference.matches || face.dataset.state !== "sleeping" || Date.now() < backendExpressionUntil) return;
+    idleTimer = later(() => {
+      const expression = idleExpressions[Math.floor(Math.random() * idleExpressions.length)];
+      setGaze(Math.random() * 1.4 - 0.7, Math.random() * 0.7 - 0.35);
+      setExpression(expression, expression === "sleepy" ? 1500 : 950);
+      gazeResetTimer = clearTimer(gazeResetTimer);
+      gazeResetTimer = window.setTimeout(() => setGaze(), 1250);
+    }, 4800, 6500);
+  }
 
   function websocketUrl () {
     const configured = new URLSearchParams(window.location.search).get("ws");
@@ -45,6 +114,13 @@
     statusLabel.textContent = readable.toUpperCase();
     face.setAttribute("aria-label", `Jarvis is ${readable}`);
     announcement.textContent = `Jarvis is ${readable}`;
+    idleTimer = clearTimer(idleTimer);
+    if (normalized === "sleeping") {
+      scheduleIdleExpression();
+    } else if (Date.now() >= backendExpressionUntil) {
+      setExpression("neutral", 0, "backend");
+      setGaze();
+    }
   }
 
   function setConnected (connected) {
@@ -69,7 +145,7 @@
 
     if (message.type === "amplitude") {
       const amplitude = Math.max(0, Math.min(1, Number(message.value) || 0));
-      face.style.setProperty("--amplitude-scale", (1 + amplitude * 0.2).toFixed(3));
+      face.style.setProperty("--talk", amplitude.toFixed(3));
       return;
     }
 
@@ -79,11 +155,8 @@
     }
 
     if (message.type === "face_cue") {
-      const expression = ["neutral", "focused", "excited", "music"].includes(message.expression) ? message.expression : "neutral";
-      face.dataset.expression = expression;
-      window.setTimeout(() => {
-        if (face.dataset.expression === expression) face.dataset.expression = "neutral";
-      }, expression === "music" ? 12000 : 3000);
+      const expression = expressions.includes(message.expression) ? message.expression : "neutral";
+      setExpression(expression, expression === "music" ? 12000 : 3000, "backend");
       return;
     }
 
@@ -162,13 +235,60 @@
     await keepScreenAwake();
   }
 
+  function trackPointer (event) {
+    if (motionPreference.matches || event.pointerType === "touch" && event.buttons === 0) return;
+    const x = event.clientX / window.innerWidth * 2 - 1;
+    const y = event.clientY / window.innerHeight * 2 - 1;
+    setGaze(x, y);
+    gazeResetTimer = clearTimer(gazeResetTimer);
+  }
+
+  function releasePointer () {
+    gazeResetTimer = clearTimer(gazeResetTimer);
+    gazeResetTimer = window.setTimeout(() => setGaze(), 650);
+  }
+
+  function reactToTap (event) {
+    if (event.target.closest("button") || face.dataset.state !== "sleeping") return;
+    const expression = tapExpressions[tapExpressionIndex % tapExpressions.length];
+    tapExpressionIndex += 1;
+    const x = event.clientX / window.innerWidth * 2 - 1;
+    const y = event.clientY / window.innerHeight * 2 - 1;
+    setGaze(x, y);
+    setExpression(expression, expression === "excited" ? 1500 : 900);
+    releasePointer();
+  }
+
   fullscreenButton.addEventListener("click", toggleFullscreen);
+  face.addEventListener("pointermove", trackPointer);
+  face.addEventListener("pointerup", releasePointer);
+  face.addEventListener("pointercancel", releasePointer);
+  face.addEventListener("click", reactToTap);
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") keepScreenAwake();
+    if (document.visibilityState === "visible") {
+      keepScreenAwake();
+      scheduleBlink();
+      scheduleIdleExpression();
+    } else {
+      blinkTimer = clearTimer(blinkTimer);
+      idleTimer = clearTimer(idleTimer);
+    }
+  });
+  motionPreference.addEventListener("change", () => {
+    scheduleBlink();
+    scheduleIdleExpression();
+    if (motionPreference.matches) {
+      face.classList.remove("is-blinking");
+      setGaze();
+      setExpression("neutral", 0, "backend");
+    }
   });
 
   // Camera and face recognition are intentionally not requested in this release.
   // A future camera provider can publish separate vision events without changing this face protocol.
+  face.dataset.expression = "neutral";
+  scheduleBlink();
+  scheduleIdleExpression();
   connect();
   keepScreenAwake();
 })();

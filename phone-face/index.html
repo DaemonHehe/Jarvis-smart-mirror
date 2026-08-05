@@ -12,7 +12,7 @@
   <body>
     <main id="face" class="robot-face" data-state="sleeping" aria-label="Jarvis is sleeping">
       <div class="ambient-glow" aria-hidden="true"></div>
-      <div class="scanlines" aria-hidden="true"></div>
+      <div class="dot-field" aria-hidden="true"></div>
 
       <div class="hud" aria-hidden="true">
         <i class="corner top-left"></i>
@@ -20,6 +20,7 @@
         <i class="corner bottom-left"></i>
         <i class="corner bottom-right"></i>
         <i class="reticle"></i>
+        <span class="face-index">01</span>
       </div>
 
       <section class="eyes" aria-hidden="true">
@@ -31,11 +32,12 @@
         </div>
       </section>
 
-      <div class="telemetry" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="telemetry" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 
       <aside class="system-strip">
         <span id="connectionDot" class="connection-dot"></span>
         <span id="statusLabel">SLEEPING</span>
+        <span class="interaction-hint">TAP TO PLAY</span>
         <span id="providerLabel">LOCAL</span>
       </aside>
 
