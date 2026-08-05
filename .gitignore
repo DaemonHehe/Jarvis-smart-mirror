@@ -1,0 +1,45 @@
+# Runtime secrets and local configuration
+.env
+.env.local
+.env.*.local
+
+# Python environments, caches, and build output
+.venv/
+venv/
+ENV/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+htmlcov/
+.coverage
+dist/
+build/
+
+# Local JavaScript caches are not part of the standalone runtime
+node_modules/
+
+# Backend runtime data and generated audio
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
+backend/*.wav
+backend/*.ogg
+backend/*.mp3
+backend/models/*.bin
+backend/models/*.pt
+backend/models/*.pth
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.log
+*.bak
+*.orig
+*.rej
+
+# Local agent state
+.agents/

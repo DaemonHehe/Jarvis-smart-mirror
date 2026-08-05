@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="color-scheme" content="dark" />
+    <title>Jarvis Face</title>
+    <link rel="manifest" href="/face/static/manifest.webmanifest" />
+    <link rel="stylesheet" href="/face/static/styles.css" />
+  </head>
+  <body>
+    <main id="face" class="robot-face" data-state="sleeping" aria-label="Jarvis is sleeping">
+      <div class="ambient-glow" aria-hidden="true"></div>
+      <div class="scanlines" aria-hidden="true"></div>
+
+      <div class="hud" aria-hidden="true">
+        <i class="corner top-left"></i>
+        <i class="corner top-right"></i>
+        <i class="corner bottom-left"></i>
+        <i class="corner bottom-right"></i>
+        <i class="reticle"></i>
+      </div>
+
+      <section class="eyes" aria-hidden="true">
+        <div class="eye-socket eye-socket-left">
+          <div class="eye eye-left"><i class="eye-core"></i><i class="eye-glint"></i></div>
+        </div>
+        <div class="eye-socket eye-socket-right">
+          <div class="eye eye-right"><i class="eye-core"></i><i class="eye-glint"></i></div>
+        </div>
+      </section>
+
+      <div class="telemetry" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+
+      <aside class="system-strip">
+        <span id="connectionDot" class="connection-dot"></span>
+        <span id="statusLabel">SLEEPING</span>
+        <span id="providerLabel">LOCAL</span>
+      </aside>
+
+      <button id="fullscreenButton" class="fullscreen-button" type="button" aria-label="Enter fullscreen">FULL</button>
+      <p id="announcement" class="visually-hidden" aria-live="polite">Jarvis is sleeping</p>
+    </main>
+    <script src="/face/static/app.js" defer></script>
+  </body>
+</html>

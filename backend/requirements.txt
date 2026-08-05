@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+websockets>=13,<17
+pydantic
+openwakeword
+faster-whisper
+edge-tts
+sounddevice
+soundfile
+numpy
+PyAudio
+ollama
+google-genai>=2.16,<3

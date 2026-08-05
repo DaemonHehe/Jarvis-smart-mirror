@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="#020608" />
+    <title>Jarvis Smart Mirror</title>
+    <link rel="stylesheet" href="/mirror/static/styles.css" />
+  </head>
+  <body data-state="sleeping" data-scene="ambient">
+    <div class="atmosphere" aria-hidden="true"></div>
+    <main class="mirror-shell">
+      <header class="top-rail">
+        <section class="clock-panel" aria-label="Date and time">
+          <time id="clock" class="clock">--:--</time>
+          <div id="date" class="date">Loading date</div>
+        </section>
+        <section class="identity" aria-label="Jarvis status">
+          <span class="identity-mark">J</span>
+          <div><strong>JARVIS</strong><small id="provider">LOCAL INTELLIGENCE</small></div>
+        </section>
+        <section id="weather" class="weather-panel" aria-label="Weather">
+          <strong id="temperature">--°</strong>
+          <div><span id="weatherSummary">Weather unavailable</span><small id="weatherLocation"></small></div>
+        </section>
+      </header>
+
+      <aside class="left-rail ambient-content">
+        <section class="panel calendar-panel">
+          <header><span>AGENDA</span><small id="calendarCount">0 EVENTS</small></header>
+          <div id="calendar" class="list muted">No upcoming events</div>
+        </section>
+        <section class="panel news-panel">
+          <header><span>SIGNAL FEED</span><small>LIVE</small></header>
+          <div id="news" class="list muted">No headlines</div>
+        </section>
+      </aside>
+
+      <section class="core-stage" aria-live="polite">
+        <div id="orb" class="orb" aria-hidden="true"><i></i><i></i><i></i><span></span></div>
+        <div class="status-lockup">
+          <small id="statusEyebrow">SYSTEM READY</small>
+          <h1 id="status">Sleeping</h1>
+        </div>
+        <div id="transcript" class="transcript" hidden>
+          <p id="userText"></p>
+          <p id="assistantText"></p>
+        </div>
+        <section id="cards" class="cards" aria-label="Jarvis results"></section>
+      </section>
+
+      <aside class="right-rail">
+        <section id="timersPanel" class="panel timers-panel" hidden>
+          <header><span>TIMERS</span><small id="timerCount">0 ACTIVE</small></header>
+          <div id="timers" class="list"></div>
+        </section>
+        <section id="media" class="media-panel" hidden>
+          <img id="mediaArt" alt="" />
+          <div><small id="mediaSource">MEDIA</small><strong id="mediaTitle"></strong><span id="mediaArtist"></span></div>
+          <progress id="mediaProgress" max="100" value="0" aria-label="Playback progress"></progress>
+        </section>
+        <section id="topology" class="panel topology" hidden>
+          <header><span>SYSTEM TOPOLOGY</span><small id="topologyLabel">ATTENTION</small></header>
+          <div id="components" class="component-grid"></div>
+        </section>
+        <section id="metrics" class="panel metrics" hidden>
+          <header><span>RESPONSE LATENCY</span><small>ROLLING</small></header>
+          <div id="metricRows"></div>
+        </section>
+      </aside>
+
+      <footer class="bottom-rail">
+        <span id="connection" class="connection"><i></i>MSI OFFLINE</span>
+        <span id="sceneLabel">AMBIENT SCENE</span>
+        <span id="presence">PRIVATE MODE</span>
+      </footer>
+    </main>
+    <div id="announcer" class="sr-only" aria-live="assertive"></div>
+    <script src="/mirror/static/app.js" defer></script>
+  </body>
+</html>

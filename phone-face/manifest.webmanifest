@@ -1,0 +1,11 @@
+{
+  "name": "Jarvis Companion Face",
+  "short_name": "Jarvis Face",
+  "start_url": "/face",
+  "scope": "/face",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "description": "Synchronized expressive face display for the Jarvis Smart Mirror backend."
+}

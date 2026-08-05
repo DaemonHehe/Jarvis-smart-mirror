@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jarvis Dashboard — Knowledge Graph &amp; Pipeline Monitor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+    <link rel="stylesheet" href="/dashboard/static/styles.css" />
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="dash-header">
+      <div class="dash-header-left">
+        <h1 class="dash-title">⚡ JARVIS <span class="dash-title-accent">Dashboard</span></h1>
+      </div>
+      <div class="dash-header-right">
+        <span class="dash-provider-badge is-local" id="providerLabel" role="status" aria-live="polite">LOCAL</span>
+        <div class="dash-ws-status" id="wsStatus" role="status" aria-label="Backend connection status">
+          <span class="dash-ws-dot" id="wsDot" aria-hidden="true"></span>
+          <span id="wsLabel">Disconnected</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Tab Navigation -->
+    <nav class="dash-tabs" aria-label="Dashboard sections">
+      <button class="dash-tab active" data-tab="knowledge" id="tabKnowledge">🧠 Knowledge Graph</button>
+      <button class="dash-tab" data-tab="pipeline" id="tabPipeline">⚡ Pipeline Monitor</button>
+    </nav>
+
+    <!-- Knowledge Graph Panel -->
+    <div class="dash-panel active" id="panelKnowledge" role="region" aria-labelledby="tabKnowledge">
+      <div class="dash-kg-layout">
+        <!-- Sidebar -->
+        <aside class="dash-kg-sidebar">
+          <!-- Stats -->
+          <div class="dash-card">
+            <h3 class="dash-card-title">Graph Stats</h3>
+            <div class="dash-stats-grid" id="statsGrid">
+              <div class="dash-stat">
+                <span class="dash-stat-value" id="statTotal">0</span>
+                <span class="dash-stat-label">Total Nodes</span>
+              </div>
+              <div class="dash-stat">
+                <span class="dash-stat-value" id="statConvos">0</span>
+                <span class="dash-stat-label">Conversations</span>
+              </div>
+              <div class="dash-stat">
+                <span class="dash-stat-value" id="statNotes">0</span>
+                <span class="dash-stat-label">Notes</span>
+              </div>
+              <div class="dash-stat">
+                <span class="dash-stat-value" id="statEdges">0</span>
+                <span class="dash-stat-label">Links</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Search -->
+          <div class="dash-card">
+            <h3 class="dash-card-title">Search</h3>
+            <input type="text" class="dash-input" id="searchInput" placeholder="Search nodes..." />
+            <div id="searchResults" class="dash-search-results"></div>
+          </div>
+
+          <!-- Actions -->
+          <div class="dash-card">
+            <button class="dash-btn dash-btn-primary" id="btnNewNote">+ New Note</button>
+            <button class="dash-btn dash-btn-secondary" id="btnRefreshGraph">⟳ Refresh Graph</button>
+          </div>
+        </aside>
+
+        <!-- Graph Canvas -->
+        <div class="dash-kg-graph-area">
+          <div id="graphCanvas" class="dash-graph-canvas"></div>
+          <!-- Node detail panel -->
+          <div class="dash-node-detail" id="nodeDetail" style="display: none;">
+            <div class="dash-node-detail-header">
+              <h3 id="detailTitle">Node Title</h3>
+              <button class="dash-btn-icon" id="btnCloseDetail">✕</button>
+            </div>
+            <div class="dash-node-detail-meta">
+              <span class="dash-badge" id="detailType">conversation</span>
+              <span class="dash-detail-time" id="detailTime"></span>
+            </div>
+            <div class="dash-node-detail-content" id="detailContent"></div>
+            <div class="dash-node-detail-tags" id="detailTags"></div>
+            <div class="dash-node-detail-neighbors" id="detailNeighbors"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pipeline Monitor Panel -->
+    <div class="dash-panel" id="panelPipeline" role="region" aria-labelledby="tabPipeline">
+      <!-- Pipeline Graph -->
+      <div class="dash-card dash-pipeline-card">
+        <h3 class="dash-card-title">Live Pipeline State</h3>
+        <div class="dash-pipeline-graph" id="pipelineGraph"></div>
+      </div>
+
+      <!-- History Table -->
+      <div class="dash-card">
+        <h3 class="dash-card-title">Cycle History</h3>
+        <div class="dash-table-wrap">
+          <table class="dash-table" id="historyTable">
+            <thead>
+              <tr>
+                <th>Cycle</th>
+                <th>Time</th>
+                <th>Wake</th>
+                <th>Record</th>
+                <th>STT</th>
+                <th>LLM</th>
+                <th>TTS</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody id="historyBody">
+              <tr>
+                <td colspan="8" class="dash-empty">No cycle history yet</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- New Note Modal -->
+    <div class="dash-modal-overlay" id="noteModal" style="display: none;">
+      <div class="dash-modal">
+        <div class="dash-modal-header">
+          <h3>Create New Note</h3>
+          <button class="dash-btn-icon" id="btnCloseModal">✕</button>
+        </div>
+        <form id="noteForm">
+          <label class="dash-label">Title</label>
+          <input type="text" class="dash-input" id="noteTitle" placeholder="Note title..." required />
+          <label class="dash-label">Content</label>
+          <textarea class="dash-textarea" id="noteContent" placeholder="Write your note..." rows="5" required></textarea>
+          <label class="dash-label">Tags (comma-separated)</label>
+          <input type="text" class="dash-input" id="noteTags" placeholder="tag1, tag2, tag3" />
+          <div class="dash-modal-actions">
+            <button type="button" class="dash-btn dash-btn-secondary" id="btnCancelNote">Cancel</button>
+            <button type="submit" class="dash-btn dash-btn-primary">Save Note</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="/dashboard/static/app.js"></script>
+  </body>
+</html>
