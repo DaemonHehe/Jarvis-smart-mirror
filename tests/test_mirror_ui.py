@@ -65,3 +65,51 @@ def test_phone_face_supports_expressive_eye_states():
         assert f'data-expression="{expression}"' in styles
     assert "--gaze-x" in styles
     assert "prefers-reduced-motion" in styles
+
+
+def test_mirror_defaults_to_portrait_information_hierarchy():
+    styles = (ROOT / "mirror-ui" / "styles.css").read_text(encoding="utf-8")
+    assert "grid-template-rows: minmax(220px, 27vh) minmax(0, 1fr) auto auto" in styles
+    assert ".clock-panel { text-align: center; }" in styles
+    assert "grid-row: 1 / -1" in styles
+    assert "top: 50%" in styles
+    assert "left: 50%" in styles
+    assert "bottom: clamp(62px, 7vh, 120px)" in styles
+    assert '@media (orientation: landscape)' in styles
+
+
+def test_phone_idle_behavior_is_choreographed_not_random():
+    source = (ROOT / "phone-face" / "app.js").read_text(encoding="utf-8")
+    assert "idleSequence" in source
+    assert "blinkSequence" in source
+    assert "behaviorStep" in source
+    assert "Math.random" not in source
+
+
+def test_mirror_frontend_has_bounded_recovery_paths():
+    source = (ROOT / "mirror-ui" / "app.js").read_text(encoding="utf-8")
+    for contract in (
+        "AbortController",
+        "fetchJson",
+        "reconnectTimer",
+        "reportFrontendError",
+        "unhandledrejection",
+        "pagehide",
+        "131072",
+        'mediaArt.addEventListener("error"',
+    ):
+        assert contract in source
+
+
+def test_phone_face_handles_protocol_and_runtime_failures():
+    source = (ROOT / "phone-face" / "app.js").read_text(encoding="utf-8")
+    for contract in (
+        "protocolFaults",
+        "reportDisplayError",
+        "unhandledrejection",
+        "pagehide",
+        "shuttingDown",
+        "131072",
+        "motionPreference.addListener",
+    ):
+        assert contract in source

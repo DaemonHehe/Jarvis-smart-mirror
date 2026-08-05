@@ -236,9 +236,15 @@ button { font: inherit; }
 
 .robot-face[data-state="listening"] .eye { transform: scale(1.04); }
 .robot-face[data-state="listening"] .telemetry i { animation: listening-dot 900ms ease-in-out infinite alternate; }
+.robot-face[data-state="listening"] .telemetry i:nth-child(2) { animation-delay: 90ms; }
+.robot-face[data-state="listening"] .telemetry i:nth-child(3) { animation-delay: 180ms; }
+.robot-face[data-state="listening"] .telemetry i:nth-child(4) { animation-delay: 270ms; }
+.robot-face[data-state="listening"] .telemetry i:nth-child(5) { animation-delay: 360ms; }
+.robot-face[data-state="listening"] .telemetry i:nth-child(6) { animation-delay: 450ms; }
+.robot-face[data-state="listening"] .telemetry i:nth-child(7) { animation-delay: 540ms; }
 .robot-face[data-state="thinking"] .reticle { animation: think-shift 1.4s steps(6) infinite; }
 .robot-face[data-state="thinking"] .eye-core { transform: translate(calc(-50% + 12px), calc(-50% - 4px)); }
-.robot-face[data-state="speaking"] .eye { transform: scaleY(calc(0.9 + var(--talk) * 0.1)); }
+.robot-face[data-state="speaking"] .eye { border-radius: 43% 43% 52% 52% / 38% 38% 62% 62%; transform: scaleY(calc(0.84 + var(--talk) * 0.14)); }
 .robot-face[data-state="speaking"] .telemetry i { height: calc(3px + var(--talk) * 16px); border-radius: 2px; opacity: calc(0.25 + var(--talk) * 0.7); }
 .robot-face[data-state="error"] .eye { background: var(--signal); box-shadow: 0 0 36px rgba(238, 62, 50, 0.3); }
 .robot-face[data-state="disconnected"] .eyes { opacity: 0.35; filter: grayscale(1); }
@@ -246,7 +252,7 @@ button { font: inherit; }
 
 @keyframes music-bob { to { transform: translate(calc(var(--gaze-x) * 10px), calc(var(--gaze-y) * 7px - 12px)) rotate(2deg); } }
 @keyframes listening-dot { to { opacity: 0.9; transform: translateY(-5px); } }
-@keyframes think-shift { 50% { transform: translateX(-50%) translateX(10px); } }
+@keyframes think-shift { 0%, 72% { transform: translateX(-50%); } 78%, 92% { transform: translateX(calc(-50% + 10px)); } 100% { transform: translateX(-50%); } }
 
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 

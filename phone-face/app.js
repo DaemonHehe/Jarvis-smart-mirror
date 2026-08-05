@@ -30,14 +30,22 @@
   let gazeResetTimer = null;
   let backendExpressionUntil = 0;
   let tapExpressionIndex = 0;
+  let blinkStep = 0;
+  let behaviorStep = 0;
+  let protocolFaults = 0;
+  let shuttingDown = false;
   const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
   const expressions = ["neutral", "curious", "happy", "sleepy", "wink", "surprised", "focused", "excited", "music"];
-  const idleExpressions = ["curious", "happy", "sleepy", "curious", "wink"];
   const tapExpressions = ["curious", "happy", "surprised", "excited", "wink"];
-
-  function later (callback, minimum, spread = 0) {
-    return window.setTimeout(callback, minimum + Math.random() * spread);
-  }
+  const blinkSequence = [4200, 6100, 4800, 7200, 5300];
+  const idleSequence = [
+    { expression: "curious", gaze: [-0.58, -0.12], hold: 850, pause: 5200 },
+    { expression: "curious", gaze: [0.58, -0.12], hold: 850, pause: 1600 },
+    { expression: "neutral", gaze: [0, 0], hold: 700, pause: 6200 },
+    { expression: "happy", gaze: [0, 0.12], hold: 1150, pause: 6800 },
+    { expression: "sleepy", gaze: [0, 0.2], hold: 1350, pause: 7600 },
+    { expression: "neutral", gaze: [0, 0], hold: 700, pause: 5600 }
+  ];
 
   function clearTimer (timer) {
     if (timer) window.clearTimeout(timer);
@@ -51,7 +59,7 @@
 
   function setExpression (expression, duration = 0, source = "local") {
     const normalized = expressions.includes(expression) ? expression : "neutral";
-    if (source === "local" && (face.dataset.state !== "sleeping" || Date.now() < backendExpressionUntil)) return;
+    if (source !== "backend" && (face.dataset.state !== "sleeping" || Date.now() < backendExpressionUntil)) return;
 
     expressionTimer = clearTimer(expressionTimer);
     face.dataset.expression = normalized;
@@ -61,7 +69,7 @@
       expressionTimer = window.setTimeout(() => {
         face.dataset.expression = "neutral";
         expressionTimer = null;
-        scheduleIdleExpression();
+        if (source !== "sequence") scheduleIdleExpression();
       }, duration);
     }
   }
@@ -69,29 +77,34 @@
   function scheduleBlink () {
     blinkTimer = clearTimer(blinkTimer);
     if (motionPreference.matches || document.hidden) return;
-    blinkTimer = later(() => {
+    const delay = blinkSequence[blinkStep % blinkSequence.length];
+    const doubleBlink = blinkStep % blinkSequence.length === 3;
+    blinkStep += 1;
+    blinkTimer = window.setTimeout(() => {
       face.classList.add("is-blinking");
       window.setTimeout(() => face.classList.remove("is-blinking"), 115);
-      if (Math.random() < 0.18) {
+      if (doubleBlink) {
         window.setTimeout(() => {
           face.classList.add("is-blinking");
           window.setTimeout(() => face.classList.remove("is-blinking"), 105);
         }, 235);
       }
       scheduleBlink();
-    }, 2800, 4200);
+    }, delay);
   }
 
-  function scheduleIdleExpression () {
+  function scheduleIdleExpression (delay = 4200) {
     idleTimer = clearTimer(idleTimer);
     if (motionPreference.matches || face.dataset.state !== "sleeping" || Date.now() < backendExpressionUntil) return;
-    idleTimer = later(() => {
-      const expression = idleExpressions[Math.floor(Math.random() * idleExpressions.length)];
-      setGaze(Math.random() * 1.4 - 0.7, Math.random() * 0.7 - 0.35);
-      setExpression(expression, expression === "sleepy" ? 1500 : 950);
+    idleTimer = window.setTimeout(() => {
+      const behavior = idleSequence[behaviorStep % idleSequence.length];
+      behaviorStep += 1;
+      setGaze(...behavior.gaze);
+      setExpression(behavior.expression, behavior.hold, "sequence");
       gazeResetTimer = clearTimer(gazeResetTimer);
-      gazeResetTimer = window.setTimeout(() => setGaze(), 1250);
-    }, 4800, 6500);
+      gazeResetTimer = window.setTimeout(() => setGaze(), behavior.hold + 180);
+      idleTimer = window.setTimeout(() => scheduleIdleExpression(), behavior.hold + behavior.pause);
+    }, delay);
   }
 
   function websocketUrl () {
@@ -110,7 +123,7 @@
       ? state
       : "sleeping";
     face.dataset.state = normalized;
-    const readable = label || normalized;
+    const readable = String(label || normalized).replace(/[\u0000-\u001f]/g, "").slice(0, 32) || normalized;
     statusLabel.textContent = readable.toUpperCase();
     face.setAttribute("aria-label", `Jarvis is ${readable}`);
     announcement.textContent = `Jarvis is ${readable}`;
@@ -126,10 +139,15 @@
   function setConnected (connected) {
     connectionDot.classList.toggle("connected", connected);
     if (!connected) setState("disconnected", "offline");
+    else if (face.dataset.state === "disconnected" || face.dataset.state === "error") setState("sleeping", "ready");
+  }
+
+  function reportDisplayError () {
+    setState("error", "signal error");
   }
 
   function handleMessage (message) {
-    if (!message || typeof message !== "object") return;
+    if (!message || typeof message !== "object" || Array.isArray(message) || typeof message.type !== "string") return;
 
     if (message.type === "state") {
       const state = message.state === "listening-followup" ? "listening" : String(message.state || "sleeping");
@@ -169,7 +187,7 @@
   }
 
   function scheduleReconnect () {
-    if (reconnectTimer) return;
+    if (reconnectTimer || shuttingDown) return;
     reconnectTimer = window.setTimeout(() => {
       reconnectTimer = null;
       connect();
@@ -178,7 +196,7 @@
   }
 
   function connect () {
-    if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) return;
+    if (shuttingDown || socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) return;
     try {
       socket = new WebSocket(websocketUrl());
     } catch {
@@ -188,18 +206,31 @@
 
     socket.addEventListener("open", () => {
       reconnectDelay = 1000;
+      protocolFaults = 0;
       setConnected(true);
       stopHeartbeat();
       heartbeatTimer = window.setInterval(() => {
-        if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ action: "ping" }));
+        if (socket?.readyState !== WebSocket.OPEN) return;
+        try {
+          socket.send(JSON.stringify({ action: "ping" }));
+        } catch {
+          socket.close();
+        }
       }, 20000);
     });
 
     socket.addEventListener("message", (event) => {
+      if (typeof event.data !== "string" || event.data.length > 131072) {
+        protocolFaults += 1;
+        if (protocolFaults >= 3) reportDisplayError();
+        return;
+      }
       try {
         handleMessage(JSON.parse(event.data));
+        protocolFaults = 0;
       } catch {
-        // Ignore malformed server frames without disturbing the face display.
+        protocolFaults += 1;
+        if (protocolFaults >= 3) reportDisplayError();
       }
     });
 
@@ -207,7 +238,7 @@
       stopHeartbeat();
       setConnected(false);
       socket = null;
-      scheduleReconnect();
+      if (!shuttingDown) scheduleReconnect();
     });
 
     socket.addEventListener("error", () => socket?.close());
@@ -274,7 +305,7 @@
       idleTimer = clearTimer(idleTimer);
     }
   });
-  motionPreference.addEventListener("change", () => {
+  const handleMotionChange = () => {
     scheduleBlink();
     scheduleIdleExpression();
     if (motionPreference.matches) {
@@ -282,6 +313,24 @@
       setGaze();
       setExpression("neutral", 0, "backend");
     }
+  };
+  if (typeof motionPreference.addEventListener === "function") motionPreference.addEventListener("change", handleMotionChange);
+  else motionPreference.addListener(handleMotionChange);
+
+  window.addEventListener("error", reportDisplayError);
+  window.addEventListener("unhandledrejection", (event) => {
+    event.preventDefault();
+    reportDisplayError();
+  });
+  window.addEventListener("pagehide", () => {
+    shuttingDown = true;
+    reconnectTimer = clearTimer(reconnectTimer);
+    blinkTimer = clearTimer(blinkTimer);
+    idleTimer = clearTimer(idleTimer);
+    expressionTimer = clearTimer(expressionTimer);
+    gazeResetTimer = clearTimer(gazeResetTimer);
+    stopHeartbeat();
+    socket?.close(1000, "page hidden");
   });
 
   // Camera and face recognition are intentionally not requested in this release.
